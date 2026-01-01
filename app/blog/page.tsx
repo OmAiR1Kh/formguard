@@ -45,7 +45,7 @@ export default function BlogPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-gray-50">
+    <div className="min-h-screen bg-linear-to-br from-blue-50 via-white to-gray-50">
       {/* Navigation */}
       <nav className="border-b border-gray-200 bg-white/80 backdrop-blur-sm sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -126,7 +126,7 @@ export default function BlogPage() {
       {/* Newsletter CTA */}
       <section className="bg-white py-16">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-          <Card className="bg-gradient-to-r from-blue-600 to-blue-700 border-0">
+          <Card className="bg-linear-to-r from-blue-600 to-blue-700 border-0">
             <CardHeader className="text-center">
               <CardTitle className="text-2xl text-white">
                 Stay Updated
