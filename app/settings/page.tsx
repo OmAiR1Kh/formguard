@@ -49,6 +49,30 @@ function SettingsContent() {
   const [inviteEmail, setInviteEmail] = useState("");
   const [processingPlan, setProcessingPlan] = useState<string | null>(null);
 
+  // Helper function to build members array from organization data
+  const buildMembersArray = (org: any) => {
+    const allMembers = [];
+    if (org?.ownerId) {
+      allMembers.push({
+        _id: org.ownerId._id,
+        email: org.ownerId.email,
+        role: org.ownerId.role || "owner",
+        joinedAt: org.createdAt, // Owner joined when org was created
+      });
+    }
+    if (org?.memberIds && Array.isArray(org.memberIds)) {
+      org.memberIds.forEach((member: any) => {
+        allMembers.push({
+          _id: member._id,
+          email: member.email,
+          role: member.role || "member",
+          joinedAt: member.joinedAt || org.createdAt, // Use joinedAt if available, otherwise fallback
+        });
+      });
+    }
+    return allMembers;
+  };
+
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -61,7 +85,8 @@ function SettingsContent() {
         setOrganization(orgData.organization);
         setStats(statsData.stats);
         setForms(formsData.forms || []);
-        setMembers(orgData.organization?.members || []);
+        setMembers(buildMembersArray(orgData.organization));
+
         if (billingData) {
           setBilling(billingData.billing);
         }
@@ -80,12 +105,33 @@ function SettingsContent() {
     fetchData();
   }, [toast]);
 
+  // Check if the logged-in user is the owner
+  const isOwner =
+    organization?.ownerId?.email?.toLowerCase() === user?.email?.toLowerCase();
+
+  // Redirect to organization tab if member tries to access restricted tabs
+  useEffect(() => {
+    if (
+      !loading &&
+      !isOwner &&
+      (activeTab === "members" || activeTab === "billing")
+    ) {
+      setActiveTab("organization");
+    }
+  }, [loading, isOwner, activeTab]);
+
   const handleInviteMember = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!inviteEmail) return;
 
     try {
       await api.organizations.inviteMember(inviteEmail, "member");
+
+      // Refetch organization data to get updated member list
+      const orgData = await api.organizations.get();
+      setOrganization(orgData.organization);
+      setMembers(buildMembersArray(orgData.organization));
+
       toast({
         title: "Invitation sent",
         description: `Invitation sent to ${inviteEmail}`,
@@ -108,7 +154,11 @@ function SettingsContent() {
 
     try {
       await api.organizations.removeMember(memberId);
-      setMembers(members.filter((m) => m._id !== memberId));
+      // Refetch organization data to get updated member list
+      const orgData = await api.organizations.get();
+      setOrganization(orgData.organization);
+      setMembers(buildMembersArray(orgData.organization));
+
       toast({
         title: "Member removed",
         description: `${memberEmail} has been removed from the organization`,
@@ -227,8 +277,8 @@ function SettingsContent() {
           <Tabs value={activeTab} onValueChange={setActiveTab}>
             <TabsList>
               <TabsTrigger value="organization">Organization</TabsTrigger>
-              <TabsTrigger value="members">Members</TabsTrigger>
-              <TabsTrigger value="billing">Billing</TabsTrigger>
+              {isOwner && <TabsTrigger value="members">Members</TabsTrigger>}
+              {isOwner && <TabsTrigger value="billing">Billing</TabsTrigger>}
               <TabsTrigger value="api-keys">API Keys</TabsTrigger>
             </TabsList>
 
@@ -237,17 +287,27 @@ function SettingsContent() {
                 <CardHeader>
                   <CardTitle>Organization Details</CardTitle>
                   <CardDescription>
-                    Update your organization information
+                    {isOwner
+                      ? "Update your organization information"
+                      : "View your organization information"}
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="space-y-2">
                     <Label htmlFor="orgName">Organization Name</Label>
-                    <Input id="orgName" value={organization?.name || ""} />
+                    <Input
+                      id="orgName"
+                      value={organization?.name || ""}
+                      disabled={!isOwner}
+                    />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="ownerEmail">Owner Email</Label>
-                    <Input id="ownerEmail" value={user?.email || ""} disabled />
+                    <Input
+                      id="ownerEmail"
+                      value={organization?.ownerId?.email || user?.email || ""}
+                      disabled
+                    />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="createdDate">Created Date</Label>
@@ -259,340 +319,348 @@ function SettingsContent() {
                       disabled
                     />
                   </div>
-                  <Button className="bg-blue-600 hover:bg-blue-700">
-                    Save Changes
-                  </Button>
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            <TabsContent value="members" className="space-y-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Team Members</CardTitle>
-                  <CardDescription>
-                    Invite and manage your team members
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                  <form onSubmit={handleInviteMember} className="flex gap-2">
-                    <Input
-                      placeholder="email@example.com"
-                      type="email"
-                      value={inviteEmail}
-                      onChange={(e) => setInviteEmail(e.target.value)}
-                    />
-                    <Button
-                      type="submit"
-                      className="bg-blue-600 hover:bg-blue-700"
-                    >
-                      <UserPlus className="w-4 h-4 mr-2" />
-                      Invite
+                  {isOwner && (
+                    <Button className="bg-blue-600 hover:bg-blue-700">
+                      Save Changes
                     </Button>
-                  </form>
-
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Email</TableHead>
-                        <TableHead>Role</TableHead>
-                        <TableHead>Joined</TableHead>
-                        <TableHead className="text-right">Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {members.map((member) => (
-                        <TableRow key={member._id}>
-                          <TableCell className="font-medium">
-                            {member.email}
-                          </TableCell>
-                          <TableCell>
-                            <Badge variant="secondary" className="capitalize">
-                              {member.role}
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="text-gray-600">
-                            {new Date(
-                              member.joinedAt || Date.now()
-                            ).toLocaleDateString()}
-                          </TableCell>
-                          <TableCell className="text-right">
-                            {member.role !== "owner" && (
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() =>
-                                  handleRemoveMember(member._id, member.email)
-                                }
-                              >
-                                <Trash2 className="w-4 h-4 text-red-600" />
-                              </Button>
-                            )}
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                      {members.length === 0 && (
-                        <TableRow>
-                          <TableCell
-                            colSpan={4}
-                            className="text-center text-gray-500"
-                          >
-                            No team members yet
-                          </TableCell>
-                        </TableRow>
-                      )}
-                    </TableBody>
-                  </Table>
+                  )}
                 </CardContent>
               </Card>
             </TabsContent>
 
-            <TabsContent value="billing" className="space-y-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Current Plan</CardTitle>
-                  <CardDescription>
-                    Manage your subscription and billing
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                  <div className="flex items-center justify-between p-4 bg-blue-50 rounded-lg border border-blue-200">
-                    <div>
-                      <h3 className="text-lg font-semibold text-gray-900">
-                        {currentPlan.name} Plan
-                      </h3>
-                      <p className="text-sm text-gray-600 mt-1">
-                        {currentPlan.price}
+            {isOwner && (
+              <TabsContent value="members" className="space-y-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Team Members</CardTitle>
+                    <CardDescription>
+                      Invite and manage your team members
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-6">
+                    <form onSubmit={handleInviteMember} className="flex gap-2">
+                      <Input
+                        placeholder="email@example.com"
+                        type="email"
+                        value={inviteEmail}
+                        onChange={(e) => setInviteEmail(e.target.value)}
+                      />
+                      <Button
+                        type="submit"
+                        className="bg-blue-600 hover:bg-blue-700"
+                      >
+                        <UserPlus className="w-4 h-4 mr-2" />
+                        Invite
+                      </Button>
+                    </form>
+
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Email</TableHead>
+                          <TableHead>Role</TableHead>
+                          <TableHead>Joined</TableHead>
+                          <TableHead className="text-right">Actions</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {members.map((member) => (
+                          <TableRow key={member._id}>
+                            <TableCell className="font-medium">
+                              {member.email}
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant="secondary" className="capitalize">
+                                {member.role}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="text-gray-600">
+                              {new Date(
+                                member.joinedAt || Date.now()
+                              ).toLocaleDateString()}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              {member.role !== "owner" && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() =>
+                                    handleRemoveMember(member._id, member.email)
+                                  }
+                                >
+                                  <Trash2 className="w-4 h-4 text-red-600" />
+                                </Button>
+                              )}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                        {members.length === 0 && (
+                          <TableRow>
+                            <TableCell
+                              colSpan={4}
+                              className="text-center text-gray-500"
+                            >
+                              No team members yet
+                            </TableCell>
+                          </TableRow>
+                        )}
+                      </TableBody>
+                    </Table>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+            )}
+
+            {isOwner && (
+              <TabsContent value="billing" className="space-y-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Current Plan</CardTitle>
+                    <CardDescription>
+                      Manage your subscription and billing
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-6">
+                    <div className="flex items-center justify-between p-4 bg-blue-50 rounded-lg border border-blue-200">
+                      <div>
+                        <h3 className="text-lg font-semibold text-gray-900">
+                          {currentPlan.name} Plan
+                        </h3>
+                        <p className="text-sm text-gray-600 mt-1">
+                          {currentPlan.price}
+                        </p>
+                      </div>
+                      <Badge className="bg-blue-600">{stats?.plan}</Badge>
+                    </div>
+
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-gray-600">
+                          Submissions this month
+                        </span>
+                        <span className="font-medium text-gray-900">
+                          {stats?.submissionsThisMonth?.toLocaleString()} of{" "}
+                          {stats?.submissionsLimit?.toLocaleString()}
+                        </span>
+                      </div>
+                      <Progress value={usagePercentage} className="h-2" />
+                      <p className="text-xs text-gray-500">
+                        Resets on{" "}
+                        {new Date(
+                          stats?.billingPeriodEnd || Date.now()
+                        ).toLocaleDateString()}
                       </p>
                     </div>
-                    <Badge className="bg-blue-600">{stats?.plan}</Badge>
-                  </div>
 
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-gray-600">
-                        Submissions this month
-                      </span>
-                      <span className="font-medium text-gray-900">
-                        {stats?.submissionsThisMonth?.toLocaleString()} of{" "}
-                        {stats?.submissionsLimit?.toLocaleString()}
-                      </span>
+                    <Button
+                      variant="outline"
+                      className="w-full bg-transparent"
+                      onClick={handleManageSubscription}
+                    >
+                      <ExternalLink className="w-4 h-4 mr-2" />
+                      Manage Subscription
+                    </Button>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Plan Comparison</CardTitle>
+                    <CardDescription>
+                      Choose the plan that fits your needs
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="overflow-x-auto">
+                      <table className="w-full">
+                        <thead>
+                          <tr className="border-b">
+                            <th className="text-left py-3 px-4 font-medium text-gray-900">
+                              Feature
+                            </th>
+                            <th className="text-center py-3 px-4 font-medium text-gray-900">
+                              Free
+                            </th>
+                            <th className="text-center py-3 px-4 font-medium text-gray-900">
+                              Starter
+                            </th>
+                            <th className="text-center py-3 px-4 font-medium text-gray-900">
+                              Pro
+                            </th>
+                            <th className="text-center py-3 px-4 font-medium text-gray-900">
+                              Agency
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <tr className="border-b">
+                            <td className="py-3 px-4 text-gray-600">
+                              Submissions
+                            </td>
+                            <td className="py-3 px-4 text-center">100</td>
+                            <td className="py-3 px-4 text-center">1,000</td>
+                            <td className="py-3 px-4 text-center">5,000</td>
+                            <td className="py-3 px-4 text-center">20,000</td>
+                          </tr>
+                          <tr className="border-b">
+                            <td className="py-3 px-4 text-gray-600">Forms</td>
+                            <td className="py-3 px-4 text-center">1</td>
+                            <td className="py-3 px-4 text-center">5</td>
+                            <td className="py-3 px-4 text-center">20</td>
+                            <td className="py-3 px-4 text-center">Unlimited</td>
+                          </tr>
+                          <tr className="border-b">
+                            <td className="py-3 px-4 text-gray-600">
+                              Team Members
+                            </td>
+                            <td className="py-3 px-4 text-center">1</td>
+                            <td className="py-3 px-4 text-center">2</td>
+                            <td className="py-3 px-4 text-center">5</td>
+                            <td className="py-3 px-4 text-center">Unlimited</td>
+                          </tr>
+                          <tr className="border-b">
+                            <td className="py-3 px-4 text-gray-600">
+                              API Access
+                            </td>
+                            <td className="py-3 px-4 text-center">
+                              <Check className="w-5 h-5 text-green-600 mx-auto" />
+                            </td>
+                            <td className="py-3 px-4 text-center">
+                              <Check className="w-5 h-5 text-green-600 mx-auto" />
+                            </td>
+                            <td className="py-3 px-4 text-center">
+                              <Check className="w-5 h-5 text-green-600 mx-auto" />
+                            </td>
+                            <td className="py-3 px-4 text-center">
+                              <Check className="w-5 h-5 text-green-600 mx-auto" />
+                            </td>
+                          </tr>
+                          <tr className="border-b">
+                            <td className="py-3 px-4 text-gray-600">
+                              Webhooks
+                            </td>
+                            <td className="py-3 px-4 text-center">-</td>
+                            <td className="py-3 px-4 text-center">
+                              <Check className="w-5 h-5 text-green-600 mx-auto" />
+                            </td>
+                            <td className="py-3 px-4 text-center">
+                              <Check className="w-5 h-5 text-green-600 mx-auto" />
+                            </td>
+                            <td className="py-3 px-4 text-center">
+                              <Check className="w-5 h-5 text-green-600 mx-auto" />
+                            </td>
+                          </tr>
+                          <tr className="border-b">
+                            <td className="py-3 px-4 text-gray-600">
+                              Priority Support
+                            </td>
+                            <td className="py-3 px-4 text-center">-</td>
+                            <td className="py-3 px-4 text-center">-</td>
+                            <td className="py-3 px-4 text-center">
+                              <Check className="w-5 h-5 text-green-600 mx-auto" />
+                            </td>
+                            <td className="py-3 px-4 text-center">
+                              <Check className="w-5 h-5 text-green-600 mx-auto" />
+                            </td>
+                          </tr>
+                          <tr>
+                            <td className="py-3 px-4 text-gray-600 font-medium">
+                              Price
+                            </td>
+                            <td className="py-3 px-4 text-center font-semibold">
+                              Free
+                            </td>
+                            <td className="py-3 px-4 text-center font-semibold">
+                              $9/mo
+                            </td>
+                            <td className="py-3 px-4 text-center font-semibold">
+                              $29/mo
+                            </td>
+                            <td className="py-3 px-4 text-center font-semibold">
+                              $79/mo
+                            </td>
+                          </tr>
+                          <tr>
+                            <td className="py-3 px-4"></td>
+                            <td className="py-3 px-4 text-center">
+                              {stats?.plan === "free" ? (
+                                <Badge variant="secondary">Current</Badge>
+                              ) : (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleUpgradePlan("starter")}
+                                  disabled={processingPlan !== null}
+                                >
+                                  {processingPlan === "starter"
+                                    ? "Processing..."
+                                    : "Downgrade"}
+                                </Button>
+                              )}
+                            </td>
+                            <td className="py-3 px-4 text-center">
+                              {stats?.plan === "starter" ? (
+                                <Badge variant="secondary">Current</Badge>
+                              ) : (
+                                <Button
+                                  size="sm"
+                                  className="bg-blue-600 hover:bg-blue-700"
+                                  onClick={() => handleUpgradePlan("starter")}
+                                  disabled={processingPlan !== null}
+                                >
+                                  {processingPlan === "starter"
+                                    ? "Processing..."
+                                    : stats?.plan === "free"
+                                    ? "Upgrade"
+                                    : stats?.plan === "pro" ||
+                                      stats?.plan === "agency"
+                                    ? "Downgrade"
+                                    : "Select"}
+                                </Button>
+                              )}
+                            </td>
+                            <td className="py-3 px-4 text-center">
+                              {stats?.plan === "pro" ? (
+                                <Badge variant="secondary">Current</Badge>
+                              ) : (
+                                <Button
+                                  size="sm"
+                                  className="bg-blue-600 hover:bg-blue-700"
+                                  onClick={() => handleUpgradePlan("pro")}
+                                  disabled={processingPlan !== null}
+                                >
+                                  {processingPlan === "pro"
+                                    ? "Processing..."
+                                    : stats?.plan === "agency"
+                                    ? "Downgrade"
+                                    : "Upgrade"}
+                                </Button>
+                              )}
+                            </td>
+                            <td className="py-3 px-4 text-center">
+                              {stats?.plan === "agency" ? (
+                                <Badge variant="secondary">Current</Badge>
+                              ) : (
+                                <Button
+                                  size="sm"
+                                  className="bg-blue-600 hover:bg-blue-700"
+                                  onClick={() => handleUpgradePlan("agency")}
+                                  disabled={processingPlan !== null}
+                                >
+                                  {processingPlan === "agency"
+                                    ? "Processing..."
+                                    : "Upgrade"}
+                                </Button>
+                              )}
+                            </td>
+                          </tr>
+                        </tbody>
+                      </table>
                     </div>
-                    <Progress value={usagePercentage} className="h-2" />
-                    <p className="text-xs text-gray-500">
-                      Resets on{" "}
-                      {new Date(
-                        stats?.billingPeriodEnd || Date.now()
-                      ).toLocaleDateString()}
-                    </p>
-                  </div>
-
-                  <Button
-                    variant="outline"
-                    className="w-full bg-transparent"
-                    onClick={handleManageSubscription}
-                  >
-                    <ExternalLink className="w-4 h-4 mr-2" />
-                    Manage Subscription
-                  </Button>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle>Plan Comparison</CardTitle>
-                  <CardDescription>
-                    Choose the plan that fits your needs
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="overflow-x-auto">
-                    <table className="w-full">
-                      <thead>
-                        <tr className="border-b">
-                          <th className="text-left py-3 px-4 font-medium text-gray-900">
-                            Feature
-                          </th>
-                          <th className="text-center py-3 px-4 font-medium text-gray-900">
-                            Free
-                          </th>
-                          <th className="text-center py-3 px-4 font-medium text-gray-900">
-                            Starter
-                          </th>
-                          <th className="text-center py-3 px-4 font-medium text-gray-900">
-                            Pro
-                          </th>
-                          <th className="text-center py-3 px-4 font-medium text-gray-900">
-                            Agency
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        <tr className="border-b">
-                          <td className="py-3 px-4 text-gray-600">
-                            Submissions
-                          </td>
-                          <td className="py-3 px-4 text-center">100</td>
-                          <td className="py-3 px-4 text-center">1,000</td>
-                          <td className="py-3 px-4 text-center">5,000</td>
-                          <td className="py-3 px-4 text-center">20,000</td>
-                        </tr>
-                        <tr className="border-b">
-                          <td className="py-3 px-4 text-gray-600">Forms</td>
-                          <td className="py-3 px-4 text-center">1</td>
-                          <td className="py-3 px-4 text-center">5</td>
-                          <td className="py-3 px-4 text-center">20</td>
-                          <td className="py-3 px-4 text-center">Unlimited</td>
-                        </tr>
-                        <tr className="border-b">
-                          <td className="py-3 px-4 text-gray-600">
-                            Team Members
-                          </td>
-                          <td className="py-3 px-4 text-center">1</td>
-                          <td className="py-3 px-4 text-center">2</td>
-                          <td className="py-3 px-4 text-center">5</td>
-                          <td className="py-3 px-4 text-center">Unlimited</td>
-                        </tr>
-                        <tr className="border-b">
-                          <td className="py-3 px-4 text-gray-600">
-                            API Access
-                          </td>
-                          <td className="py-3 px-4 text-center">
-                            <Check className="w-5 h-5 text-green-600 mx-auto" />
-                          </td>
-                          <td className="py-3 px-4 text-center">
-                            <Check className="w-5 h-5 text-green-600 mx-auto" />
-                          </td>
-                          <td className="py-3 px-4 text-center">
-                            <Check className="w-5 h-5 text-green-600 mx-auto" />
-                          </td>
-                          <td className="py-3 px-4 text-center">
-                            <Check className="w-5 h-5 text-green-600 mx-auto" />
-                          </td>
-                        </tr>
-                        <tr className="border-b">
-                          <td className="py-3 px-4 text-gray-600">Webhooks</td>
-                          <td className="py-3 px-4 text-center">-</td>
-                          <td className="py-3 px-4 text-center">
-                            <Check className="w-5 h-5 text-green-600 mx-auto" />
-                          </td>
-                          <td className="py-3 px-4 text-center">
-                            <Check className="w-5 h-5 text-green-600 mx-auto" />
-                          </td>
-                          <td className="py-3 px-4 text-center">
-                            <Check className="w-5 h-5 text-green-600 mx-auto" />
-                          </td>
-                        </tr>
-                        <tr className="border-b">
-                          <td className="py-3 px-4 text-gray-600">
-                            Priority Support
-                          </td>
-                          <td className="py-3 px-4 text-center">-</td>
-                          <td className="py-3 px-4 text-center">-</td>
-                          <td className="py-3 px-4 text-center">
-                            <Check className="w-5 h-5 text-green-600 mx-auto" />
-                          </td>
-                          <td className="py-3 px-4 text-center">
-                            <Check className="w-5 h-5 text-green-600 mx-auto" />
-                          </td>
-                        </tr>
-                        <tr>
-                          <td className="py-3 px-4 text-gray-600 font-medium">
-                            Price
-                          </td>
-                          <td className="py-3 px-4 text-center font-semibold">
-                            Free
-                          </td>
-                          <td className="py-3 px-4 text-center font-semibold">
-                            $9/mo
-                          </td>
-                          <td className="py-3 px-4 text-center font-semibold">
-                            $29/mo
-                          </td>
-                          <td className="py-3 px-4 text-center font-semibold">
-                            $79/mo
-                          </td>
-                        </tr>
-                        <tr>
-                          <td className="py-3 px-4"></td>
-                          <td className="py-3 px-4 text-center">
-                            {stats?.plan === "free" ? (
-                              <Badge variant="secondary">Current</Badge>
-                            ) : (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => handleUpgradePlan("starter")}
-                                disabled={processingPlan !== null}
-                              >
-                                {processingPlan === "starter"
-                                  ? "Processing..."
-                                  : "Downgrade"}
-                              </Button>
-                            )}
-                          </td>
-                          <td className="py-3 px-4 text-center">
-                            {stats?.plan === "starter" ? (
-                              <Badge variant="secondary">Current</Badge>
-                            ) : (
-                              <Button
-                                size="sm"
-                                className="bg-blue-600 hover:bg-blue-700"
-                                onClick={() => handleUpgradePlan("starter")}
-                                disabled={processingPlan !== null}
-                              >
-                                {processingPlan === "starter"
-                                  ? "Processing..."
-                                  : stats?.plan === "free"
-                                  ? "Upgrade"
-                                  : stats?.plan === "pro" ||
-                                    stats?.plan === "agency"
-                                  ? "Downgrade"
-                                  : "Select"}
-                              </Button>
-                            )}
-                          </td>
-                          <td className="py-3 px-4 text-center">
-                            {stats?.plan === "pro" ? (
-                              <Badge variant="secondary">Current</Badge>
-                            ) : (
-                              <Button
-                                size="sm"
-                                className="bg-blue-600 hover:bg-blue-700"
-                                onClick={() => handleUpgradePlan("pro")}
-                                disabled={processingPlan !== null}
-                              >
-                                {processingPlan === "pro"
-                                  ? "Processing..."
-                                  : stats?.plan === "agency"
-                                  ? "Downgrade"
-                                  : "Upgrade"}
-                              </Button>
-                            )}
-                          </td>
-                          <td className="py-3 px-4 text-center">
-                            {stats?.plan === "agency" ? (
-                              <Badge variant="secondary">Current</Badge>
-                            ) : (
-                              <Button
-                                size="sm"
-                                className="bg-blue-600 hover:bg-blue-700"
-                                onClick={() => handleUpgradePlan("agency")}
-                                disabled={processingPlan !== null}
-                              >
-                                {processingPlan === "agency"
-                                  ? "Processing..."
-                                  : "Upgrade"}
-                              </Button>
-                            )}
-                          </td>
-                        </tr>
-                      </tbody>
-                    </table>
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+            )}
 
             <TabsContent value="api-keys" className="space-y-6">
               <Card>
