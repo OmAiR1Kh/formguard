@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Shield, Target, Users, Zap, Heart } from "lucide-react";
+import { Shield, Calendar, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -11,9 +11,41 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 
-export default function AboutPage() {
+export default function BlogPage() {
+  const blogPosts = [
+    {
+      title: "How to Detect Fake Form Submissions: A Complete Guide",
+      description:
+        "Learn the most effective strategies for identifying and blocking fake form submissions before they waste your time.",
+      date: "January 15, 2025",
+      category: "Tutorial",
+    },
+    {
+      title:
+        "Understanding Lead Quality Scores: What They Mean and How to Use Them",
+      description:
+        "Deep dive into FormGuard's quality scoring algorithm and how to interpret scores to improve your lead generation.",
+      date: "January 10, 2025",
+      category: "Guide",
+    },
+    {
+      title: "5 Ways to Reduce Form Drop-offs and Increase Conversions",
+      description:
+        "Discover proven techniques to identify where users abandon your forms and how to fix common drop-off points.",
+      date: "January 5, 2025",
+      category: "Tips",
+    },
+    {
+      title: "Bot Detection: VPNs, Proxies, and Disposable Emails Explained",
+      description:
+        "Everything you need to know about the different types of bots and how FormGuard detects them automatically.",
+      date: "December 28, 2024",
+      category: "Technical",
+    },
+  ];
+
   return (
-    <div className="min-h-screen bg-linear-to-br from-blue-50 via-white to-gray-50">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-gray-50">
       {/* Navigation */}
       <nav className="border-b border-gray-200 bg-white/80 backdrop-blur-sm sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -42,130 +74,80 @@ export default function AboutPage() {
       </nav>
 
       {/* Hero Section */}
-      <section className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 pt-20 pb-12">
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-20 pb-12">
         <div className="text-center">
           <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-6">
-            About FormGuard
+            Blog
           </h1>
           <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-            We're on a mission to help developers and businesses stop wasting
-            time on fake form submissions and focus on real leads.
+            Tips, tutorials, and insights on form management, lead quality, and
+            bot detection.
           </p>
         </div>
       </section>
 
-      {/* Mission Section */}
+      {/* Blog Posts */}
       <section className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <Card>
-          <CardHeader>
-            <div className="w-16 h-16 bg-blue-100 rounded-lg flex items-center justify-center mb-4">
-              <Target className="w-8 h-8 text-blue-600" />
-            </div>
-            <CardTitle className="text-2xl">Our Mission</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-gray-600 text-lg leading-relaxed">
-              FormGuard was born from frustration. We saw developers and
-              businesses spending hours manually reviewing form submissions,
-              trying to separate real leads from bots and spam. We knew there
-              had to be a better way.
-            </p>
-            <p className="text-gray-600 text-lg leading-relaxed mt-4">
-              Our mission is simple: automate the detection of fake submissions
-              so you can focus on what matters - building great products and
-              connecting with real customers.
-            </p>
-          </CardContent>
-        </Card>
-      </section>
-
-      {/* Values Section */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div className="text-center mb-12">
-          <h2 className="text-3xl font-bold text-gray-900 mb-4">Our Values</h2>
-        </div>
-        <div className="grid md:grid-cols-3 gap-6">
-          <Card>
-            <CardHeader>
-              <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mb-4">
-                <Zap className="w-6 h-6 text-blue-600" />
-              </div>
-              <CardTitle>Simplicity</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <CardDescription>
-                We believe powerful tools should be easy to use. That's why
-                FormGuard integrates in minutes, not hours.
-              </CardDescription>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader>
-              <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mb-4">
-                <Shield className="w-6 h-6 text-blue-600" />
-              </div>
-              <CardTitle>Security First</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <CardDescription>
-                Your data is encrypted, secure, and GDPR compliant. We take
-                privacy seriously.
-              </CardDescription>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader>
-              <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mb-4">
-                <Users className="w-6 h-6 text-blue-600" />
-              </div>
-              <CardTitle>Developer Focused</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <CardDescription>
-                Built by developers, for developers. We understand your pain
-                points and build solutions that actually work.
-              </CardDescription>
-            </CardContent>
-          </Card>
-        </div>
-      </section>
-
-      {/* Team Section */}
-      <section className="bg-white py-12">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl font-bold text-gray-900 mb-4">
-              Built with ❤️
-            </h2>
-            <p className="text-lg text-gray-600">
-              FormGuard is built and maintained by{" "}
-              <span className="font-semibold text-gray-900">Omair Khoder</span>
-            </p>
-            <p className="text-gray-600 mt-4">
-              We're a small team passionate about making form management easier
-              for everyone.
-            </p>
-          </div>
-        </div>
-      </section>
-
-      {/* CTA Section */}
-      <section className="bg-linear-to-r from-blue-600 to-blue-700 py-16">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h2 className="text-3xl font-bold text-white mb-4">
-            Ready to get started?
-          </h2>
-          <p className="text-xl text-blue-100 mb-8">
-            Join thousands of developers protecting their forms with FormGuard.
-          </p>
-          <Link href="/register">
-            <Button
-              size="lg"
-              className="bg-white text-blue-600 hover:bg-gray-100 text-lg px-8 py-6"
+        <div className="space-y-6">
+          {blogPosts.map((post, index) => (
+            <Card
+              key={index}
+              className="hover:shadow-lg transition-shadow cursor-pointer"
             >
-              Get Started Free
-            </Button>
-          </Link>
+              <CardHeader>
+                <div className="flex items-center gap-2 text-sm text-gray-500 mb-2">
+                  <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs font-medium">
+                    {post.category}
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <Calendar className="w-4 h-4" />
+                    {post.date}
+                  </span>
+                </div>
+                <CardTitle className="text-2xl">{post.title}</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <CardDescription className="text-base mb-4">
+                  {post.description}
+                </CardDescription>
+                <Link
+                  href="#"
+                  className="inline-flex items-center text-blue-600 hover:text-blue-700 font-medium"
+                >
+                  Read more
+                  <ArrowRight className="w-4 h-4 ml-1" />
+                </Link>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </section>
+
+      {/* Newsletter CTA */}
+      <section className="bg-white py-16">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+          <Card className="bg-gradient-to-r from-blue-600 to-blue-700 border-0">
+            <CardHeader className="text-center">
+              <CardTitle className="text-2xl text-white">
+                Stay Updated
+              </CardTitle>
+              <CardDescription className="text-blue-100">
+                Get the latest tips and updates delivered to your inbox.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="flex flex-col sm:flex-row gap-2 max-w-md mx-auto">
+                <input
+                  type="email"
+                  placeholder="Enter your email"
+                  className="flex-1 px-4 py-2 rounded-lg border-0 focus:outline-none focus:ring-2 focus:ring-white"
+                />
+                <Button className="bg-white text-blue-600 hover:bg-gray-100">
+                  Subscribe
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </section>
 
